@@ -45,11 +45,12 @@ export default function AndroidAuto() {
   let latestVersion = 2;
   let controller;
   let socket;
-  let zoom = Math.max(1, window.innerHeight / 1080);
+  let zoom = 0;
   var backlog = 0;
   let lastimagetimer;
   let timeoutid;
   let lastrun;
+  let resolution;
   const ipList = ["3.3.3.3", "teslaa.androidwheels.com", "10.1.47.73"];
 
   /**
@@ -147,26 +148,8 @@ export default function AndroidAuto() {
             }
             port = json.port;
 
-            if (!canvas.current) {
-              alert("NO CANVAS???");
-              return;
-            }
-
-            if (json.resolution === 2) {
-              width = 1920;
-              height = 1080;
-              zoom = canvas.current.offsetHeight / 1080;
-            } else if (json.resolution === 1) {
-              width = 1280;
-              height = 720;
-              zoom = canvas.current.offsetHeight / 720;
-            } else {
-              width = 800;
-              height = 480;
-              zoom = canvas.current.offsetHeight / 480;
-            }
-
-            console.log("ZOOM", zoom);
+            resolution = json.resolution;
+            updateZoom();
 
             if (json.hasOwnProperty("buildversion")) {
               appversion = parseInt(json.buildversion);
@@ -233,6 +216,28 @@ export default function AndroidAuto() {
         });
     });
   }
+
+  function updateZoom() {
+    if (!canvas.current) {
+      return;
+    }
+
+    if (resolution === 2) {
+      width = 1920;
+      height = 1080;
+      zoom = canvas.current.offsetHeight / 940;
+    } else if (resolution === 1) {
+      width = 1280;
+      height = 720;
+      zoom = canvas.current.offsetHeight / 720;
+    } else {
+      width = 800;
+      height = 480;
+      zoom = canvas.current.offsetHeight / 480;
+    }
+  }
+
+  window.addEventListener("resize", updateZoom);
 
   let options = {
     enableHighAccuracy: true,
@@ -360,8 +365,8 @@ export default function AndroidAuto() {
 }
 
 const Container = styled.div`
-  width: 100vw;
-  height: 72.857vw;
+  height: min(100vh, 72.857vw);
+  aspect-ratio: 100000/72857;
   background-color: black;
   overflow: hidden;
   display: flex;
