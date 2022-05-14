@@ -65,49 +65,15 @@ export default function AndroidAuto() {
   var backlog = 0;
   let lastimagetimer;
   let timeoutid;
-  var timerId = null;
+  var timerId = setTimeout(() => {});
 
   useEffect(() => {
     if (video.current) video.current.style.display = "none";
     if (canvas.current) canvas.current.style.display = "none";
   }, []);
 
-  /**
-   * links media source up to video element
-   * @param e source open event
-   */
-  function handleSourceOpen(e: Event) {
-    console.log("handling source open");
-    if (video.current == undefined || e.currentTarget == undefined) return;
-
-    let mime = 'video/mp4; codecs="avc1.428028"';
-    let sourceBuffer = (e.currentTarget as MediaSource).addSourceBuffer(mime);
-    sourceBuffer.addEventListener("error", socketClose);
-
-    video.current.play();
-    video.current.playbackRate = 1;
-  }
-
-  function videoData(event) {
-    new Response(event.data).arrayBuffer().then((d) => {
-      var bytes = new Uint8Array(d);
-      if (
-        video.current.buffered.length > 0 &&
-        video.current.buffered.end(0) * 30 >
-          video.current.getVideoPlaybackQuality().totalVideoFrames + 10
-      ) {
-        video.current.playbackRate = 1.4;
-      } else video.current.playbackRate = 1;
-
-      que = appendByteArray(que, bytes);
-      if (sourceBuffer != null && !sourceBuffer.updating) {
-        sourceBuffer.appendBuffer(que);
-        que = new Uint8Array();
-      }
-    });
-  }
-
   function oldCanvas(event) {
+    console.log("OLD CANVAS");
     const ds = new DecompressionStream("gzip");
     const decompressedStream = event.data.stream().pipeThrough(ds);
     new Response(decompressedStream).arrayBuffer().then((d) => {
@@ -188,26 +154,27 @@ export default function AndroidAuto() {
             width = 1280;
             height = 720;
             zoom = Math.max(1, window.innerHeight / 720);
-            document.querySelector("video").style.height = "max(100vh,720px)";
-            document.querySelector("canvas").style.height = "max(100vh,720px)";
+            if (canvas.current)
+              canvas.current.style.height = "max(100vh,720px)";
           } else {
             width = 800;
             height = 480;
             zoom = Math.max(1, window.innerHeight / 480);
-            document.querySelector("video").style.height = "max(100vh,480px)";
-            document.querySelector("canvas").style.height = "max(100vh,480px)";
+            if (canvas.current)
+              canvas.current.style.height = "max(100vh,720px)";
           }
 
           if (json.hasOwnProperty("buildversion")) {
             appversion = parseInt(json.buildversion);
             if (latestVersion > parseInt(json.buildversion)) {
               if (
-                parseInt(localStorage.getItem("showupdate")) !== latestVersion
+                parseInt(localStorage.getItem("showupdate") ?? "0") !==
+                latestVersion
               ) {
                 alert(
                   "There is a new version in playsotre, please update your app."
                 );
-                localStorage.setItem("showupdate", latestVersion);
+                localStorage.setItem("showupdate", latestVersion.toString());
               }
             }
           }
@@ -222,12 +189,14 @@ export default function AndroidAuto() {
               "https://www.androidwheels.com" + window.location.pathname;
 
           if (appversion >= 8) {
-            canvas.current.width = width;
-            canvas.current.height = height;
+            if (canvas.current) {
+              canvas.current.width = width;
+              canvas.current.height = height;
+            }
           }
 
           if (appversion >= 12) {
-            ctx = canvas.current.getContext("2d");
+            if (canvas.current) ctx = canvas.current.getContext("2d");
           } else if (appversion >= 8) {
             webgl = new WebglScreen(canvas.current);
             webgl._init();
@@ -246,13 +215,11 @@ export default function AndroidAuto() {
           lastrun = Date.now();
 
           if (appversion < 8) {
-            video.current.style.display = "block";
+            if (video.current) video.current.style.display = "block";
             var mediaSource = new MediaSource();
             timerId = setTimeout(function () {
               heartbeat(socket);
             }, 2000);
-            video.current.src = URL.createObjectURL(mediaSource);
-            mediaSource.addEventListener("sourceopen", handleSourceOpen);
             mediaSource.addEventListener("sourceended", () => {
               console.log("mediaSource ended");
               socketClose();
@@ -267,10 +234,9 @@ export default function AndroidAuto() {
               console.error("mediaSource error");
               socketClose();
             });
-          } else canvas.current.style.display = "block";
+          } else if (canvas.current) canvas.current.style.display = "block";
           //
           this.removeEventListener("open", arguments.callee);
-          document.getElementById("info").style.display = "none";
 
           if (
             window.matchMedia &&
@@ -292,8 +258,9 @@ export default function AndroidAuto() {
 
         socket.addEventListener("error", socketClose);
 
-        if (appversion < 8) socket.addEventListener("message", videoData);
-        else if (appversion < 12) socket.addEventListener("message", oldCanvas);
+        console.log("appversion", appversion);
+
+        if (appversion < 12) socket.addEventListener("message", oldCanvas);
         else socket.addEventListener("message", canvasData);
       })
       .catch((error) => {
@@ -331,7 +298,7 @@ export default function AndroidAuto() {
     timeoutid = setTimeout(getLocation, 500);
   }
 
-  function socketClose(event) {
+  function socketClose() {
     setTimeout(function () {
       location.reload();
     }, 2000);
