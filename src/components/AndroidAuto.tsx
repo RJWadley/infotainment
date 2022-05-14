@@ -400,6 +400,7 @@ const Info = styled.div`
   bottom: 0;
   display: grid;
   place-items: center;
+  pointer-events: none;
 `;
 
 let spin = keyframes`
