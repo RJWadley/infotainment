@@ -24,9 +24,19 @@ function App() {
   return (
     <div>
       {!isFullscreen && (
-        <button ref={fullscreenButton} onClick={enterFullscreen}>
-          Enter Fullscreen
-        </button>
+        <>
+          <button ref={fullscreenButton} onClick={enterFullscreen}>
+            Enter Fullscreen
+          </button>
+          <button
+            ref={fullscreenButton}
+            onClick={() => {
+              setFullscreen(true);
+            }}
+          >
+            Skip Fullscreen
+          </button>
+        </>
       )}
       {isFullscreen && <AndroidAuto />}
     </div>
