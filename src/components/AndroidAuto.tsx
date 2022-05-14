@@ -52,7 +52,12 @@ export default function AndroidAuto() {
   let timeoutid;
   let lastrun;
   let resolution;
-  const ipList = ["3.3.3.3", "teslaa.androidwheels.com", "10.1.47.73"];
+  const ipList = [
+    "3.3.3.3",
+    "teslaa.androidwheels.com",
+    "10.1.47.73",
+    "192.168.43.202",
+  ];
 
   /**
    * runs every two seconds to either keep the socket alive or create a new one
