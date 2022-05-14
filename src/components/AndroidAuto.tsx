@@ -37,16 +37,7 @@ function keepAlive(webSocket: WebSocket) {
   }
 }
 
-function appendByteArray(buffer1: Uint8Array, buffer2: Uint8Array) {
-  var tmp = new Uint8Array((buffer1.byteLength | 0) + (buffer2.byteLength | 0));
-  tmp.set(buffer1, 0);
-  tmp.set(buffer2, buffer1.byteLength | 0);
-  return tmp;
-}
-
 export default function AndroidAuto() {
-  let que = new Uint8Array();
-  var video = useRef<HTMLVideoElement>(null);
   var canvas = useRef<HTMLCanvasElement>(null);
   const renderObject = document.querySelector("body");
   var width, height;
@@ -68,7 +59,6 @@ export default function AndroidAuto() {
   var timerId = setTimeout(() => {});
 
   useEffect(() => {
-    if (video.current) video.current.style.display = "none";
     if (canvas.current) canvas.current.style.display = "none";
   }, []);
 
@@ -214,27 +204,7 @@ export default function AndroidAuto() {
           socket.send(JSON.stringify({ action: "START" }));
           lastrun = Date.now();
 
-          if (appversion < 8) {
-            if (video.current) video.current.style.display = "block";
-            var mediaSource = new MediaSource();
-            timerId = setTimeout(function () {
-              heartbeat(socket);
-            }, 2000);
-            mediaSource.addEventListener("sourceended", () => {
-              console.log("mediaSource ended");
-              socketClose();
-            });
-
-            mediaSource.addEventListener("sourceclose", () => {
-              console.log("mediaSource closed");
-              socketClose();
-            });
-
-            mediaSource.addEventListener("error", () => {
-              console.error("mediaSource error");
-              socketClose();
-            });
-          } else if (canvas.current) canvas.current.style.display = "block";
+          if (canvas.current) canvas.current.style.display = "block";
           //
           this.removeEventListener("open", arguments.callee);
 
@@ -303,25 +273,6 @@ export default function AndroidAuto() {
       location.reload();
     }, 2000);
   }
-  function appendByteArray(buffer1, buffer2) {
-    var tmp = new Uint8Array(
-      (buffer1.byteLength | 0) + (buffer2.byteLength | 0)
-    );
-    tmp.set(buffer1, 0);
-    tmp.set(buffer2, buffer1.byteLength | 0);
-    return tmp;
-  }
-
-  function isJson(item) {
-    item = typeof item !== "string" ? JSON.stringify(item) : item;
-
-    try {
-      item = JSON.parse(item);
-    } catch (e) {
-      return false;
-    }
-    return typeof item === "object" && item !== null;
-  }
 
   renderObject.addEventListener("touchstart", (event) => {
     // vidElement.playbackRate = 1.4;
@@ -386,7 +337,6 @@ export default function AndroidAuto() {
 
   return (
     <Container>
-      <VideoPlayer muted ref={video} />
       <div id="info" />
       <canvas ref={canvas}></canvas>
       {/* <Info ref={info}>
