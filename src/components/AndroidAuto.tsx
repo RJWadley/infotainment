@@ -47,7 +47,7 @@ export default function AndroidAuto() {
   const info = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLVideoElement>(null);
-  const ipList = ["192.168.43.207", "10.1.47.5"];
+  const ipList = ["192.168.43.207", "10.1.47.5", "10.1.47.73"];
   const [socket, setSocket] = useState<WebSocket>();
   const [zoom, setZoom] = useState(1);
   const [socketURL, setSocketURL] = useState<string>();
