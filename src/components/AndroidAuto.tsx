@@ -49,14 +49,16 @@ export default function AndroidAuto() {
   let lastrun = 0;
   let socket;
   let zoom = Math.max(1, window.innerHeight / 1080);
-  let urlToFetch =
-    location.protocol === "https:"
-      ? `https://teslaa.androidwheels.com:8081/getsocketport?w=1258&h=922`
-      : `http://teslaa.androidwheels.com:8080/getsocketport?w=1258&h=922`;
   var backlog = 0;
   let lastimagetimer;
   let timeoutid;
   var timerId = setTimeout(() => {});
+  const ipList = ["10.1.47.73", "3.3.3.3", "teslaa.androidwheels.com"];
+  const [ip, setIp] = useState(ipList[0]);
+  let urlToFetch =
+    location.protocol === "https:"
+      ? `https://${ip}:8081/getsocketport?w=1258&h=922`
+      : `http://${ip}:8080/getsocketport?w=1258&h=922`;
 
   useEffect(() => {
     if (canvas.current) canvas.current.style.display = "none";
@@ -196,34 +198,11 @@ export default function AndroidAuto() {
         }
 
         if (location.protocol === "https:")
-          socket = new WebSocket(`wss://teslaa.androidwheels.com:${port}`);
-        else socket = new WebSocket(`ws://teslaa.androidwheels.com:${port}`);
+          socket = new WebSocket(`wss://${ip}:${port}`);
+        else socket = new WebSocket(`ws://${ip}:${port}`);
 
         //socket= new WebSocket(`ws://${ipAddress}:${port}`);
-        socket.addEventListener("open", (event) => {
-          socket.send(JSON.stringify({ action: "START" }));
-          lastrun = Date.now();
-
-          if (canvas.current) canvas.current.style.display = "block";
-          //
-          this.removeEventListener("open", arguments.callee);
-
-          if (
-            window.matchMedia &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches
-          ) {
-            socket.send(JSON.stringify({ action: "NIGHT", value: true }));
-          } else socket.send(JSON.stringify({ action: "NIGHT", value: false }));
-
-          window
-            .matchMedia("(prefers-color-scheme: dark)")
-            .addEventListener("change", (event) => {
-              socket.send(
-                JSON.stringify({ action: "NIGHT", value: event.matches })
-              );
-            });
-          timeoutid = setTimeout(getLocation, 200);
-        });
+        socket.addEventListener("open", handleSocketOpen);
         socket.addEventListener("close", socketClose);
 
         socket.addEventListener("error", socketClose);
@@ -246,6 +225,29 @@ export default function AndroidAuto() {
     enableHighAccuracy: true,
     timeout: 5000,
     maximumAge: 150,
+  };
+
+  const handleSocketOpen = () => {
+    socket.send(JSON.stringify({ action: "START" }));
+    lastrun = Date.now();
+
+    if (canvas.current) canvas.current.style.display = "block";
+
+    socket.removeEventListener("open", handleSocketOpen);
+
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      socket.send(JSON.stringify({ action: "NIGHT", value: true }));
+    } else socket.send(JSON.stringify({ action: "NIGHT", value: false }));
+
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (event) => {
+        socket.send(JSON.stringify({ action: "NIGHT", value: event.matches }));
+      });
+    timeoutid = setTimeout(getLocation, 200);
   };
 
   function getLocation() {
@@ -312,26 +314,6 @@ export default function AndroidAuto() {
       })
     );
   });
-
-  function heartbeat(webSocket) {
-    if (Date.now() > lastrun + 3000) {
-      location.reload();
-    }
-
-    lastrun = Date.now();
-    if (webSocket.readyState == webSocket.OPEN) {
-      webSocket.send("");
-      timerId = setTimeout(function () {
-        heartbeat(webSocket);
-      }, 2000);
-    }
-  }
-
-  function cancelKeepAlive() {
-    if (timerId != null) {
-      clearTimeout(timerId);
-    }
-  }
 
   checkphone();
 
