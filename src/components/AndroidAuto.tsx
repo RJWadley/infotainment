@@ -61,10 +61,16 @@ export default function AndroidAuto() {
     if (canvas.current) canvas.current.style.display = "none";
   }, []);
 
-  function sourceOpen(e) {
-    var mime = 'video/mp4; codecs="avc1.428028"';
-    sourceBuffer = e.currentTarget.addSourceBuffer(mime);
-    // sourceBuffer.addEventListener('update', updatetime);
+  /**
+   * links media source up to video element
+   * @param e source open event
+   */
+  function handleSourceOpen(e: Event) {
+    console.log("handling source open");
+    if (video.current == undefined || e.currentTarget == undefined) return;
+
+    let mime = 'video/mp4; codecs="avc1.428028"';
+    let sourceBuffer = (e.currentTarget as MediaSource).addSourceBuffer(mime);
     sourceBuffer.addEventListener("error", socketClose);
 
     video.current.play();
@@ -255,7 +261,7 @@ export default function AndroidAuto() {
               heartbeat(socket);
             }, 2000);
             video.current.src = URL.createObjectURL(mediaSource);
-            mediaSource.addEventListener("sourceopen", sourceOpen);
+            mediaSource.addEventListener("sourceopen", handleSourceOpen);
             mediaSource.addEventListener("sourceended", () => {
               console.log("mediaSource ended");
               socketClose();
