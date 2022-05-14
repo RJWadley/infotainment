@@ -165,6 +165,7 @@ export default function AndroidAuto() {
 
     const handleTouchEnd = (event: TouchEvent) => {
       console.log("touchend");
+      alert(navigator.serial);
       if (socket == undefined) return;
       socket.send(
         JSON.stringify({

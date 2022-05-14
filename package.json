@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@types/styled-components": "^5.1.23",
+    "@types/w3c-web-serial": "^1.0.2",
     "cordova": "^11.0.0",
     "normalize.css": "^8.0.1",
     "react": "^17.0.2",

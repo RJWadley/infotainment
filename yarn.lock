@@ -446,6 +446,11 @@
     "@types/react" "*"
     csstype "^3.0.2"
 
+"@types/w3c-web-serial@^1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@types/w3c-web-serial/-/w3c-web-serial-1.0.2.tgz#8bf21f90b40dda6d2e2e6b188417b6bd66525d03"
+  integrity sha512-Ftx4BtLxgAnel7V7GbHylCYjSq827A+jeEE3SnTS7huCGUN0pSwUn+CchTCT9TkZj9w+NVMUq4Bk2R0GvUNmAQ==
+
 "@vitejs/plugin-react@^1.0.7":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@vitejs/plugin-react/-/plugin-react-1.2.0.tgz#4cfb4c0475e93885e56d66ff15e12ef4c34b0af0"
