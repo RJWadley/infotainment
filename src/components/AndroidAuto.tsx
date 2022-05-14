@@ -48,6 +48,9 @@ export default function AndroidAuto() {
   let que = new Uint8Array();
   var video = useRef<HTMLVideoElement>(null);
   var canvas = useRef<HTMLCanvasElement>(null);
+  const renderObject = document.querySelector("body");
+  var width, height;
+  let appversion = 0;
   let ctx, webgl;
   const ipAddress = "192.168.3.4";
   let latestVersion = 2;
@@ -55,6 +58,14 @@ export default function AndroidAuto() {
   let lastrun = 0;
   let socket;
   let zoom = Math.max(1, window.innerHeight / 1080);
+  let urlToFetch =
+    location.protocol === "https:"
+      ? `https://teslaa.androidwheels.com:8081/getsocketport?w=1258&h=922`
+      : `http://teslaa.androidwheels.com:8080/getsocketport?w=1258&h=922`;
+  var backlog = 0;
+  let lastimagetimer;
+  let timeoutid;
+  var timerId = null;
 
   useEffect(() => {
     if (video.current) video.current.style.display = "none";
@@ -76,24 +87,6 @@ export default function AndroidAuto() {
     video.current.play();
     video.current.playbackRate = 1;
   }
-
-  // const vidElement = document.querySelector('video');
-  const renderObject = document.querySelector("body");
-  var width, height;
-  let appversion = 0;
-  //const ctx = canvas.getContext('2d');
-  // let webgl=new WebglScreen(canvas);
-  // webgl._init();
-
-  //const urlToFetch = `http://${ipAddress}:8080/getsocketport?w=${window.innerWidth}&h=${window.innerHeight}`;
-  let urlToFetch;
-
-  if (location.protocol === "https:")
-    urlToFetch = `https://teslaa.androidwheels.com:8081/getsocketport?w=1258&h=922`;
-  else
-    urlToFetch = `http://teslaa.androidwheels.com:8080/getsocketport?w=1258&h=922`;
-
-  var backlog = 0;
 
   function videoData(event) {
     new Response(event.data).arrayBuffer().then((d) => {
@@ -136,8 +129,6 @@ export default function AndroidAuto() {
 
     renderAsync(imageDecoder, backlog);
   }
-
-  let lastimagetimer;
 
   function renderAsync(imageDecoder, poss) {
     imageDecoder.decode().then((result) => {
@@ -314,7 +305,6 @@ export default function AndroidAuto() {
       });
   }
 
-  let timeoutid;
   let options = {
     enableHighAccuracy: true,
     timeout: 5000,
@@ -404,8 +394,6 @@ export default function AndroidAuto() {
       })
     );
   });
-
-  var timerId = null;
 
   function heartbeat(webSocket) {
     if (Date.now() > lastrun + 3000) {
