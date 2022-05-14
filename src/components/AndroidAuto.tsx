@@ -39,7 +39,6 @@ function keepAlive(webSocket: WebSocket) {
 
 export default function AndroidAuto() {
   var canvas = useRef<HTMLCanvasElement>(null);
-  const renderObject = document.querySelector("body");
   var width, height;
   let appversion = 0;
   let ctx, webgl;
@@ -64,10 +63,6 @@ export default function AndroidAuto() {
     }
   }
   useInterval(heartbeat, 2000);
-
-  useEffect(() => {
-    if (canvas.current) canvas.current.style.display = "none";
-  }, []);
 
   function oldCanvas(event) {
     console.log("OLD CANVAS");
@@ -151,21 +146,27 @@ export default function AndroidAuto() {
               location.reload();
             }
             port = json.port;
+
+            if (!canvas.current) {
+              alert("NO CANVAS???");
+              return;
+            }
+
             if (json.resolution === 2) {
               width = 1920;
               height = 1080;
-              zoom = Math.max(1, window.innerHeight / 1080);
+              zoom = canvas.current.offsetHeight / 1080;
             } else if (json.resolution === 1) {
               width = 1280;
               height = 720;
-              zoom = Math.max(1, window.innerHeight / 720);
+              zoom = canvas.current.offsetHeight / 720;
             } else {
               width = 800;
               height = 480;
-              zoom = Math.max(1, window.innerHeight / 480);
-              if (canvas.current)
-                canvas.current.style.height = "max(100vh,720px)";
+              zoom = canvas.current.offsetHeight / 480;
             }
+
+            console.log("ZOOM", zoom);
 
             if (json.hasOwnProperty("buildversion")) {
               appversion = parseInt(json.buildversion);
@@ -288,53 +289,53 @@ export default function AndroidAuto() {
     // }, 2000);
   }
 
-  if (renderObject) {
-    renderObject.addEventListener("touchstart", (event) => {
-      // vidElement.playbackRate = 1.4;
-      if (socket && socket.readyState === socket.OPEN)
-        socket.send(
-          JSON.stringify({
-            action: "DOWN",
-            X: Math.floor(event.touches[0].clientX / zoom),
-            Y: Math.floor(event.touches[0].clientY / zoom),
-          })
-        );
-    });
-    renderObject.addEventListener("touchend", (event) => {
-      if (socket && socket.readyState === socket.OPEN)
-        socket.send(
-          JSON.stringify({
-            action: "UP",
-            X: Math.floor(event.changedTouches[0].clientX / zoom),
-            Y: Math.floor(event.changedTouches[0].clientY / zoom),
-          })
-        );
-    });
-    renderObject.addEventListener("touchcancel", (event) => {
-      if (socket && socket.readyState === socket.OPEN)
-        socket.send(
-          JSON.stringify({
-            action: "UP",
-            X: Math.floor(event.touches[0].clientX / zoom),
-            Y: Math.floor(event.touches[0].clientY / zoom),
-          })
-        );
-    });
-    renderObject.addEventListener("touchmove", (event) => {
-      // vidElement.playbackRate = 1.4;
-      if (socket && socket.readyState === socket.OPEN)
-        socket.send(
-          JSON.stringify({
-            action: "DRAG",
-            X: Math.floor(event.touches[0].clientX / zoom),
-            Y: Math.floor(event.touches[0].clientY / zoom),
-          })
-        );
-    });
-  }
-
   useEffect(() => {
-    if (canvas.current) checkphone();
+    if (canvas.current) {
+      canvas.current.addEventListener("touchstart", (event) => {
+        // vidElement.playbackRate = 1.4;
+        if (socket && socket.readyState === socket.OPEN)
+          socket.send(
+            JSON.stringify({
+              action: "DOWN",
+              X: Math.floor(event.touches[0].clientX / zoom),
+              Y: Math.floor(event.touches[0].clientY / zoom),
+            })
+          );
+      });
+      canvas.current.addEventListener("touchend", (event) => {
+        if (socket && socket.readyState === socket.OPEN)
+          socket.send(
+            JSON.stringify({
+              action: "UP",
+              X: Math.floor(event.changedTouches[0].clientX / zoom),
+              Y: Math.floor(event.changedTouches[0].clientY / zoom),
+            })
+          );
+      });
+      canvas.current.addEventListener("touchcancel", (event) => {
+        if (socket && socket.readyState === socket.OPEN)
+          socket.send(
+            JSON.stringify({
+              action: "UP",
+              X: Math.floor(event.touches[0].clientX / zoom),
+              Y: Math.floor(event.touches[0].clientY / zoom),
+            })
+          );
+      });
+      canvas.current.addEventListener("touchmove", (event) => {
+        // vidElement.playbackRate = 1.4;
+        if (socket && socket.readyState === socket.OPEN)
+          socket.send(
+            JSON.stringify({
+              action: "DRAG",
+              X: Math.floor(event.touches[0].clientX / zoom),
+              Y: Math.floor(event.touches[0].clientY / zoom),
+            })
+          );
+      });
+
+      checkphone();
+    }
   }, [canvas]);
 
   return (
@@ -374,6 +375,7 @@ const Canvas = styled.canvas`
   transition: opacity 1s;
   opacity: 1;
   height: 100.88%;
+  min-width: 100%;
 `;
 
 const Info = styled.div`
