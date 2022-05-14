@@ -3,6 +3,7 @@ import logo from "./logo.svg";
 import "normalize.css";
 import AndroidAuto from "./components/AndroidAuto";
 import { useRef } from "react";
+import ReloadPrompt from "./components/pwa/reloadPrompt";
 
 function App() {
   const [isFullscreen, setFullscreen] = useState(false);
@@ -23,6 +24,7 @@ function App() {
 
   return (
     <div>
+      <ReloadPrompt />
       {!isFullscreen && (
         <>
           <button ref={fullscreenButton} onClick={enterFullscreen}>
