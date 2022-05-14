@@ -66,6 +66,7 @@ export default function AndroidAuto() {
 
   function oldCanvas(event) {
     console.log("OLD CANVAS");
+    // @ts-ignore
     const ds = new DecompressionStream("gzip");
     const decompressedStream = event.data.stream().pipeThrough(ds);
     new Response(decompressedStream).arrayBuffer().then((d) => {
@@ -80,6 +81,7 @@ export default function AndroidAuto() {
     if (backlog > 1) return;
 
     backlog++;
+    // @ts-ignore
     let imageDecoder = new ImageDecoder({
       data: event.data.stream(),
       type: "image/jpeg",
@@ -276,44 +278,46 @@ export default function AndroidAuto() {
     }, 2000);
   }
 
-  renderObject.addEventListener("touchstart", (event) => {
-    // vidElement.playbackRate = 1.4;
-    socket.send(
-      JSON.stringify({
-        action: "DOWN",
-        X: Math.floor(event.touches[0].clientX / zoom),
-        Y: Math.floor(event.touches[0].clientY / zoom),
-      })
-    );
-  });
-  renderObject.addEventListener("touchend", (event) => {
-    socket.send(
-      JSON.stringify({
-        action: "UP",
-        X: Math.floor(event.changedTouches[0].clientX / zoom),
-        Y: Math.floor(event.changedTouches[0].clientY / zoom),
-      })
-    );
-  });
-  renderObject.addEventListener("touchcancel", (event) => {
-    socket.send(
-      JSON.stringify({
-        action: "UP",
-        X: Math.floor(event.touches[0].clientX / zoom),
-        Y: Math.floor(event.touches[0].clientY / zoom),
-      })
-    );
-  });
-  renderObject.addEventListener("touchmove", (event) => {
-    // vidElement.playbackRate = 1.4;
-    socket.send(
-      JSON.stringify({
-        action: "DRAG",
-        X: Math.floor(event.touches[0].clientX / zoom),
-        Y: Math.floor(event.touches[0].clientY / zoom),
-      })
-    );
-  });
+  if (renderObject) {
+    renderObject.addEventListener("touchstart", (event) => {
+      // vidElement.playbackRate = 1.4;
+      socket.send(
+        JSON.stringify({
+          action: "DOWN",
+          X: Math.floor(event.touches[0].clientX / zoom),
+          Y: Math.floor(event.touches[0].clientY / zoom),
+        })
+      );
+    });
+    renderObject.addEventListener("touchend", (event) => {
+      socket.send(
+        JSON.stringify({
+          action: "UP",
+          X: Math.floor(event.changedTouches[0].clientX / zoom),
+          Y: Math.floor(event.changedTouches[0].clientY / zoom),
+        })
+      );
+    });
+    renderObject.addEventListener("touchcancel", (event) => {
+      socket.send(
+        JSON.stringify({
+          action: "UP",
+          X: Math.floor(event.touches[0].clientX / zoom),
+          Y: Math.floor(event.touches[0].clientY / zoom),
+        })
+      );
+    });
+    renderObject.addEventListener("touchmove", (event) => {
+      // vidElement.playbackRate = 1.4;
+      socket.send(
+        JSON.stringify({
+          action: "DRAG",
+          X: Math.floor(event.touches[0].clientX / zoom),
+          Y: Math.floor(event.touches[0].clientY / zoom),
+        })
+      );
+    });
+  }
 
   checkphone();
 
