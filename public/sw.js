@@ -14,6 +14,14 @@ self.addEventListener("install", function (e) {
 //if network success, add to cache
 //if network fail, return from cache
 self.addEventListener("fetch", function (e) {
+  // skip the request if request is not made with https or http protocol
+  if (
+    e.request.url.indexOf("https://") === -1 &&
+    e.request.url.indexOf("http://") === -1
+  ) {
+    return;
+  }
+
   e.respondWith(
     fetch(e.request)
       .then(function (res) {
