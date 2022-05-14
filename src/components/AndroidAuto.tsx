@@ -39,6 +39,7 @@ function keepAlive(webSocket: WebSocket) {
 
 export default function AndroidAuto() {
   var canvas = useRef<HTMLCanvasElement>(null);
+  const info = useRef<HTMLDivElement>(null);
   var width, height;
   let appversion = 0;
   let ctx, webgl;
@@ -111,6 +112,8 @@ export default function AndroidAuto() {
 
   function checkphone() {
     console.log("Now fetching");
+    if (info.current) info.current.style.opacity = "1";
+    if (canvas.current) canvas.current.style.opacity = "0";
 
     controller = new AbortController();
     const signal = controller.signal;
@@ -146,6 +149,7 @@ export default function AndroidAuto() {
               );
               location.reload();
             }
+
             port = json.port;
 
             resolution = json.resolution;
@@ -246,6 +250,9 @@ export default function AndroidAuto() {
   };
 
   const handleSocketOpen = () => {
+    if (info.current) info.current.style.opacity = "0";
+    if (canvas.current) canvas.current.style.opacity = "1";
+
     socket.send(JSON.stringify({ action: "START" }));
     lastrun = Date.now();
 
@@ -345,9 +352,8 @@ export default function AndroidAuto() {
 
   return (
     <Container>
-      <div id="info" />
       <Canvas ref={canvas}></Canvas>
-      {/* <Info ref={info}>
+      <Info ref={info}>
         <Spinner reverse={true} size="400" color="#CC3F0C">
           <Spinner reverse={false} size="350" color="#FFA630">
             <Spinner reverse={true} size="300" color="#C9DCB3">
@@ -359,7 +365,7 @@ export default function AndroidAuto() {
             </Spinner>
           </Spinner>
         </Spinner>
-      </Info> */}
+      </Info>
     </Container>
   );
 }
