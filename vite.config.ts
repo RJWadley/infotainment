@@ -7,7 +7,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      includeAssets: ["assets/favicon.ico", "assets/apple-touch-icon.png"],
+      includeAssets: [
+        "assets/favicon.ico",
+        "assets/apple-touch-icon.png",
+        "android-chrome-192x192.png",
+        "android-chrome-512x512.png",
+      ],
       manifest: {
         name: "Cartainment",
         short_name: "car",
@@ -15,12 +20,12 @@ export default defineConfig({
         theme_color: "purple",
         icons: [
           {
-            src: "/assets/android-chrome-192x192.png",
+            src: "android-chrome-192x192.png",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "/assets/android-chrome-512x512.png",
+            src: "android-chrome-512x512.png",
             sizes: "512x512",
             type: "image/png",
           },
