@@ -2,158 +2,329 @@ import { useEffect, useRef, useState } from "react";
 import { render } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import { useInterval, useTimeout } from "usehooks-ts";
-
-/**
- * determines if the api response is json or string
- * @param item item to distinguish
- * @returns true if json
- */
-function isJson(item: JSON | string) {
-  item = typeof item !== "string" ? JSON.stringify(item) : item;
-
-  try {
-    item = JSON.parse(item);
-  } catch (e) {
-    return false;
-  }
-
-  if (typeof item === "object" && item !== null) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * keeps a socket alive by sending empty string
- * @param webSocket socket to keep alive
- */
-function keepAlive(webSocket: WebSocket) {
-  console.log("Keeping the socket alive...");
-
-  if (webSocket.readyState == webSocket.OPEN) {
-    webSocket.send("");
-  }
-}
-
-function appendByteArray(buffer1: Uint8Array, buffer2: Uint8Array) {
-  var tmp = new Uint8Array((buffer1.byteLength | 0) + (buffer2.byteLength | 0));
-  tmp.set(buffer1, 0);
-  tmp.set(buffer2, buffer1.byteLength | 0);
-  return tmp;
-}
+import { WebglScreen } from "./webgl";
 
 export default function AndroidAuto() {
-  const info = useRef<HTMLDivElement>(null);
-  const container = useRef<HTMLDivElement>(null);
-  const player = useRef<HTMLVideoElement>(null);
-  const ipList = ["192.168.43.207", "10.1.47.5", "10.1.47.73"];
-  const [socket, setSocket] = useState<WebSocket>();
-  const [zoom, setZoom] = useState(1);
-  const [socketURL, setSocketURL] = useState<string>();
-  const [resolution, setResolution] = useState(2);
-  let sourceBuffer: SourceBuffer;
-  let mediaSource: MediaSource;
-  let queue = new Uint8Array();
+  window.addEventListener("DOMContentLoaded", () => {
+    let que = new Uint8Array();
+    var logger = document.getElementById("log");
+    var vidElement = document.querySelector("video");
+    var canvas = document.querySelector("canvas");
+    let ctx, webgl;
+    vidElement.style.display = "none";
+    canvas.style.display = "none";
+    const ipAddress = "192.168.3.4";
+    let latestVersion = 2;
+    let controller;
+    let lastrun = 0;
+    let socket;
+    let zoom = Math.max(1, window.innerHeight / 1080);
 
-  /**
-   * runs every two seconds to either keep the socket alive or create a new one
-   */
-  async function heartbeat() {
-    if (typeof socket !== "undefined" && socket.readyState === socket.OPEN) {
-      keepAlive(socket);
-    } else {
-      if (player.current) player.current.style.opacity = "0";
-      if (info.current) info.current.style.opacity = "1";
-      checkForPhone(ipList)
-        .then((address) => {
-          setSocket(new WebSocket(address));
-          setSocketURL(address);
+    function sourceOpen(e) {
+      var mime = 'video/mp4; codecs="avc1.428028"';
+      sourceBuffer = e.currentTarget.addSourceBuffer(mime);
+      // sourceBuffer.addEventListener('update', updatetime);
+      sourceBuffer.addEventListener("error", socketClose);
+
+      vidElement.play();
+      vidElement.playbackRate = 1;
+    }
+
+    // const vidElement = document.querySelector('video');
+    const renderObject = document.querySelector("body");
+    var width, height;
+    let appversion = 0;
+    //const ctx = canvas.getContext('2d');
+    // let webgl=new WebglScreen(canvas);
+    // webgl._init();
+
+    //const urlToFetch = `http://${ipAddress}:8080/getsocketport?w=${window.innerWidth}&h=${window.innerHeight}`;
+    let urlToFetch;
+
+    if (location.protocol === "https:")
+      urlToFetch = `https://teslaa.androidwheels.com:8081/getsocketport?w=${window.innerWidth}&h=${window.innerHeight}`;
+    else
+      urlToFetch = `http://teslaa.androidwheels.com:8080/getsocketport?w=${window.innerWidth}&h=${window.innerHeight}`;
+
+    var backlog = 0;
+
+    function videoData(event) {
+      new Response(event.data).arrayBuffer().then((d) => {
+        var bytes = new Uint8Array(d);
+        if (
+          vidElement.buffered.length > 0 &&
+          vidElement.buffered.end(0) * 30 >
+            vidElement.getVideoPlaybackQuality().totalVideoFrames + 10
+        ) {
+          vidElement.playbackRate = 1.4;
+        } else vidElement.playbackRate = 1;
+
+        que = appendByteArray(que, bytes);
+        if (sourceBuffer != null && !sourceBuffer.updating) {
+          sourceBuffer.appendBuffer(que);
+          que = new Uint8Array();
+        }
+      });
+    }
+
+    function oldCanvas(event) {
+      const ds = new DecompressionStream("gzip");
+      const decompressedStream = event.data.stream().pipeThrough(ds);
+      new Response(decompressedStream).arrayBuffer().then((d) => {
+        webgl.renderImg(width, height, new Uint8Array(d));
+      });
+
+      socket.send("");
+    }
+
+    function canvasData(event) {
+      clearTimeout(lastimagetimer);
+      if (backlog > 1) return;
+
+      backlog++;
+      let imageDecoder = new ImageDecoder({
+        data: event.data.stream(),
+        type: "image/jpeg",
+      });
+
+      renderAsync(imageDecoder, backlog);
+    }
+
+    let lastimagetimer;
+
+    function renderAsync(imageDecoder, poss) {
+      imageDecoder.decode().then((result) => {
+        if (backlog <= poss) ctx.drawImage(result.image, 0, 0);
+        backlog--;
+
+        if (backlog == 0) lastimagetimer = setTimeout(reDownloadLastFrame, 400);
+      });
+    }
+
+    function reDownloadLastFrame() {
+      socket.send("");
+    }
+
+    function abortFetching() {
+      console.log("Now aborting");
+      controller.abort();
+    }
+
+    function checkphone() {
+      console.log("Now fetching");
+
+      controller = new AbortController();
+      const signal = controller.signal;
+
+      const wait = setTimeout(() => {
+        abortFetching();
+      }, 5000);
+
+      fetch(urlToFetch, { method: "get", signal: signal })
+        .then((response) => response.text())
+        .then((data) => {
+          clearTimeout(wait);
+          if (document.hidden) {
+            setTimeout(() => {
+              checkphone();
+            }, 2000);
+            return;
+          }
+
+          let port;
+
+          if (isJson(data)) {
+            const json = JSON.parse(data);
+            if (json.hasOwnProperty("wrongresolution")) {
+              alert(
+                "Browser resolution doesn't match app resolution. Updating values and restarting app."
+              );
+              location.reload();
+            }
+            port = json.port;
+            if (json.resolution === 2) {
+              width = 1920;
+              height = 1080;
+              zoom = Math.max(1, window.innerHeight / 1080);
+            } else if (json.resolution === 1) {
+              width = 1280;
+              height = 720;
+              zoom = Math.max(1, window.innerHeight / 720);
+              document.querySelector("video").style.height = "max(100vh,720px)";
+              document.querySelector("canvas").style.height =
+                "max(100vh,720px)";
+            } else {
+              width = 800;
+              height = 480;
+              zoom = Math.max(1, window.innerHeight / 480);
+              document.querySelector("video").style.height = "max(100vh,480px)";
+              document.querySelector("canvas").style.height =
+                "max(100vh,480px)";
+            }
+
+            if (json.hasOwnProperty("buildversion")) {
+              appversion = parseInt(json.buildversion);
+              if (latestVersion > parseInt(json.buildversion)) {
+                if (
+                  parseInt(localStorage.getItem("showupdate")) !== latestVersion
+                ) {
+                  alert(
+                    "There is a new version in playsotre, please update your app."
+                  );
+                  localStorage.setItem("showupdate", latestVersion);
+                }
+              }
+            }
+
+            if (json.hasOwnProperty("width") && appversion > 11) {
+              width = json.width;
+              height = json.height;
+            }
+
+            if (location.protocol !== "https:" && appversion >= 11)
+              document.location.href =
+                "https://www.androidwheels.com" + window.location.pathname;
+
+            if (appversion >= 8) {
+              canvas.width = width;
+              canvas.height = height;
+            }
+
+            if (appversion >= 12) {
+              ctx = canvas.getContext("2d");
+            } else if (appversion >= 8) {
+              webgl = new WebglScreen(canvas);
+              webgl._init();
+            }
+          } else {
+            port = data;
+          }
+
+          if (location.protocol === "https:")
+            socket = new WebSocket(`wss://teslaa.androidwheels.com:${port}`);
+          else socket = new WebSocket(`ws://teslaa.androidwheels.com:${port}`);
+
+          //socket= new WebSocket(`ws://${ipAddress}:${port}`);
+          socket.addEventListener("open", (event) => {
+            socket.send(JSON.stringify({ action: "START" }));
+            lastrun = Date.now();
+
+            if (appversion < 8) {
+              vidElement.style.display = "block";
+              var mediaSource = new MediaSource();
+              timerId = setTimeout(function () {
+                keepAlive(socket);
+              }, 2000);
+              vidElement.src = URL.createObjectURL(mediaSource);
+              mediaSource.addEventListener("sourceopen", sourceOpen);
+              mediaSource.addEventListener("sourceended", () => {
+                console.log("mediaSource ended");
+                socketClose();
+              });
+
+              mediaSource.addEventListener("sourceclose", () => {
+                console.log("mediaSource closed");
+                socketClose();
+              });
+
+              mediaSource.addEventListener("error", () => {
+                console.error("mediaSource error");
+                socketClose();
+              });
+            } else canvas.style.display = "block";
+            //
+            this.removeEventListener("open", arguments.callee);
+            document.getElementById("info").style.display = "none";
+
+            if (
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches
+            ) {
+              socket.send(JSON.stringify({ action: "NIGHT", value: true }));
+            } else
+              socket.send(JSON.stringify({ action: "NIGHT", value: false }));
+
+            window
+              .matchMedia("(prefers-color-scheme: dark)")
+              .addEventListener("change", (event) => {
+                socket.send(
+                  JSON.stringify({ action: "NIGHT", value: event.matches })
+                );
+              });
+            timeoutid = setTimeout(getLocation, 200);
+          });
+          socket.addEventListener("close", socketClose);
+
+          socket.addEventListener("error", socketClose);
+
+          if (appversion < 8) socket.addEventListener("message", videoData);
+          else if (appversion < 12)
+            socket.addEventListener("message", oldCanvas);
+          else socket.addEventListener("message", canvasData);
         })
         .catch((error) => {
-          console.log("no connections found");
+          console.log(error);
+          clearTimeout(wait);
+          setTimeout(function () {
+            checkphone();
+          }, 2000);
         });
     }
-  }
-  useInterval(heartbeat, 2000);
 
-  useEffect(() => {
-    function updateResolution() {
-      if (player.current)
-        if (resolution == 2) {
-          setZoom(player.current.offsetHeight / 1080);
-        } else if (resolution == 1) {
-          setZoom(player.current.offsetHeight / 720);
-        } else {
-          setZoom(player.current.offsetHeight / 480);
-        }
-    }
-
-    updateResolution();
-    window.addEventListener("resize", updateResolution);
-
-    return () => {
-      window.removeEventListener("resize", updateResolution);
+    let timeoutid;
+    let options = {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 150,
     };
-  }, [resolution]);
 
-  /**
-   * defines socket event listeners when the socket changes
-   */
-  useEffect(() => {
-    console.log("socket updated");
-
-    if (socket == undefined) {
-      console.log("socket is not defined");
-      return;
+    function getLocation() {
+      navigator.geolocation.getCurrentPosition(getPosition);
     }
 
-    socket.addEventListener("open", handleSocketOpen);
-    socket.addEventListener("close", handleSocketClose);
-    socket.addEventListener("error", handleSocketClose);
-    socket.addEventListener("message", handleSocketData);
-
-    return () => {
-      socket.removeEventListener("open", handleSocketOpen);
-      socket.removeEventListener("close", handleSocketClose);
-      socket.removeEventListener("error", handleSocketClose);
-      socket.removeEventListener("message", handleSocketData);
-    };
-  }, [socket]);
-
-  /**
-   * defines video events
-   */
-  useEffect(() => {
-    console.log("player updated");
-
-    if (player.current == undefined) return;
-
-    function handleError(e: ErrorEvent) {
-      console.error(e, e.message);
+    function getPosition(pos) {
+      clearTimeout(timeoutid);
+      socket.send(
+        JSON.stringify({
+          action: "GPS",
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          altitude: pos.coords.altitude,
+          accuracy: pos.coords.accuracy,
+          heading: pos.coords.heading,
+          speed: pos.coords.speed,
+        })
+      );
+      timeoutid = setTimeout(getLocation, 500);
     }
 
-    // player.current.addEventListener("error", handleError);
+    function socketClose(event) {
+      setTimeout(function () {
+        location.reload();
+      }, 2000);
+    }
+    function appendByteArray(buffer1, buffer2) {
+      var tmp = new Uint8Array(
+        (buffer1.byteLength | 0) + (buffer2.byteLength | 0)
+      );
+      tmp.set(buffer1, 0);
+      tmp.set(buffer2, buffer1.byteLength | 0);
+      return tmp;
+    }
 
-    // player.current.addEventListener("pause", function (e) {
-    //   // window.location.reload();
-    // });
+    function isJson(item) {
+      item = typeof item !== "string" ? JSON.stringify(item) : item;
 
-    return;
-  }, [player]);
+      try {
+        item = JSON.parse(item);
+      } catch (e) {
+        return false;
+      }
+      return typeof item === "object" && item !== null;
+    }
 
-  /**
-   * handles touch events on the rendered surface
-   */
-  useEffect(() => {
-    console.log("render object changed");
-
-    if (container.current == undefined) return;
-
-    const handleTouchStart = (event: TouchEvent) => {
-      console.log("touchstart");
-      if (player.current == undefined || socket == undefined) return;
-      player.current.playbackRate = 1.4;
+    renderObject.addEventListener("touchstart", (event) => {
+      // vidElement.playbackRate = 1.4;
       socket.send(
         JSON.stringify({
           action: "DOWN",
@@ -161,12 +332,8 @@ export default function AndroidAuto() {
           Y: Math.floor(event.touches[0].clientY / zoom),
         })
       );
-    };
-
-    const handleTouchEnd = (event: TouchEvent) => {
-      console.log("touchend");
-      alert(navigator.serial);
-      if (socket == undefined) return;
+    });
+    renderObject.addEventListener("touchend", (event) => {
       socket.send(
         JSON.stringify({
           action: "UP",
@@ -174,11 +341,8 @@ export default function AndroidAuto() {
           Y: Math.floor(event.changedTouches[0].clientY / zoom),
         })
       );
-    };
-
-    const handleTouchCancel = (event: TouchEvent) => {
-      console.log("touchcancel");
-      if (socket == undefined) return;
+    });
+    renderObject.addEventListener("touchcancel", (event) => {
       socket.send(
         JSON.stringify({
           action: "UP",
@@ -186,13 +350,9 @@ export default function AndroidAuto() {
           Y: Math.floor(event.touches[0].clientY / zoom),
         })
       );
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      console.log("touchmove");
-      if (socket == undefined) return;
-      if (player.current == undefined) return;
-      player.current.playbackRate = 1.4;
+    });
+    renderObject.addEventListener("touchmove", (event) => {
+      // vidElement.playbackRate = 1.4;
       socket.send(
         JSON.stringify({
           action: "DRAG",
@@ -200,180 +360,40 @@ export default function AndroidAuto() {
           Y: Math.floor(event.touches[0].clientY / zoom),
         })
       );
-    };
+    });
 
-    container.current.addEventListener("touchstart", handleTouchStart);
-    container.current.addEventListener("touchend", handleTouchEnd);
-    container.current.addEventListener("touchcancel", handleTouchCancel);
-    container.current.addEventListener("touchmove", handleTouchMove);
+    var timerId = null;
 
-    return () => {
-      if (container.current == undefined) return;
-      container.current.removeEventListener("touchstart", handleTouchStart);
-      container.current.removeEventListener("touchend", handleTouchEnd);
-      container.current.removeEventListener("touchcancel", handleTouchCancel);
-      container.current.removeEventListener("touchmove", handleTouchMove);
-    };
+    function keepAlive(webSocket) {
+      if (Date.now() > lastrun + 3000) {
+        location.reload();
+      }
+
+      lastrun = Date.now();
+      if (webSocket.readyState == webSocket.OPEN) {
+        webSocket.send("");
+        timerId = setTimeout(function () {
+          keepAlive(webSocket);
+        }, 2000);
+      }
+    }
+
+    function cancelKeepAlive() {
+      if (timerId != null) {
+        clearTimeout(timerId);
+      }
+    }
+
+    checkphone();
   });
 
-  /**
-   * links media source up to video element
-   * @param e source open event
-   */
-  function handleSourceOpen(e: Event) {
-    console.log("handling source open");
-    if (player.current == undefined || e.currentTarget == undefined) return;
-
-    let mime = 'video/mp4; codecs="avc1.428028"';
-    sourceBuffer = (e.currentTarget as MediaSource).addSourceBuffer(mime);
-    sourceBuffer.addEventListener("error", handleSocketClose);
-
-    console.log(sourceBuffer);
-
-    player.current.play();
-    player.current.playbackRate = 1;
-  }
-
-  function updateMedia() {
-    if (player.current == undefined) return;
-
-    console.log("updating media");
-    mediaSource = new MediaSource();
-    player.current.src = URL.createObjectURL(mediaSource);
-
-    mediaSource.addEventListener("sourceopen", handleSourceOpen);
-
-    mediaSource.addEventListener("sourceended", () => {
-      console.log("mediaSource ended");
-      handleSocketClose();
-    });
-
-    mediaSource.addEventListener("sourceclose", () => {
-      console.log("mediaSource closed");
-      handleSocketClose();
-    });
-
-    mediaSource.addEventListener("error", () => {
-      console.error("mediaSource error");
-      handleSocketClose();
-    });
-  }
-
-  /**
-   * setup when socket opens
-   */
-  function handleSocketOpen() {
-    if (player.current == undefined) {
-      throw new Error("No player to stream to!");
-    }
-    if (socket == undefined) {
-      throw new Error("No socket!");
-    }
-
-    setTimeout(() => {
-      if (player.current) player.current.style.opacity = "1";
-    }, 3000);
-    setTimeout(() => {
-      if (info.current) info.current.style.opacity = "0";
-    }, 2000);
-
-    updateMedia();
-
-    socket.send(JSON.stringify({ action: "START" }));
-    socket.removeEventListener("open", handleSocketOpen);
-  }
-
-  /**
-   * handles incoming socket data
-   * @param event socket data event
-   */
-  function handleSocketData(event: MessageEvent) {
-    new Response(event.data).arrayBuffer().then((d) => {
-      let bytes = new Uint8Array(d);
-      if (
-        player.current != undefined &&
-        player.current.buffered.length > 0 &&
-        player.current.buffered.end(0) * 30 >
-          player.current.getVideoPlaybackQuality().totalVideoFrames + 10
-      ) {
-        player.current.playbackRate = 1.4;
-      } else if (player.current != undefined) {
-        player.current.playbackRate = 1;
-      }
-
-      queue = appendByteArray(queue, bytes);
-      if (sourceBuffer != null && !sourceBuffer.updating) {
-        sourceBuffer.appendBuffer(queue);
-        queue = new Uint8Array();
-      } else {
-        console.log("no source?", sourceBuffer);
-        if (sourceBuffer == undefined) {
-          socket?.close();
-          if (socketURL) setSocket(new WebSocket(socketURL));
-        }
-      }
-    });
-  }
-
-  /**
-   * takes care of when the socket closes
-   */
-  function handleSocketClose() {}
-
-  /**
-   * polls all the given ips to check for active ones
-   * @param ips list of ips to check
-   * @returns the ws address to hook into
-   */
-  function checkForPhone(ips: string[]) {
-    let controller = new AbortController();
-    let signal = controller.signal;
-    let promises: Promise<string>[] = [];
-
-    ips.forEach((ip) => {
-      promises.push(
-        new Promise<string>((resolve, reject) => {
-          setTimeout(() => {
-            controller.abort();
-            reject();
-          }, 1500);
-
-          let urlToFetch = "http://" + ip + ":8080/getsocketport";
-          console.log("polling ip", ip);
-          fetch(urlToFetch, {
-            method: "get",
-            signal: signal,
-          })
-            .then((response) => response.text())
-            .then((data) => {
-              if (document.hidden) {
-                reject();
-                return;
-              }
-
-              let port;
-              if (isJson(data)) {
-                let json = JSON.parse(data);
-                port = json.port;
-                setResolution(json.resolution);
-              } else port = data;
-
-              resolve("ws://" + ip + ":" + port);
-            })
-            .catch((error) => {
-              reject(error);
-            });
-        })
-      );
-    });
-
-    return Promise.any(promises);
-  }
-
   return (
-    <Container ref={container}>
-      <VideoPlayer muted ref={player} />
-      <Info ref={info}>
+    <Container>
+      <script></script>
+      <VideoPlayer muted />
+      <div id="info" />
+      <canvas></canvas>
+      {/* <Info ref={info}>
         <Spinner reverse={true} size="400" color="#CC3F0C">
           <Spinner reverse={false} size="350" color="#FFA630">
             <Spinner reverse={true} size="300" color="#C9DCB3">
@@ -385,7 +405,7 @@ export default function AndroidAuto() {
             </Spinner>
           </Spinner>
         </Spinner>
-      </Info>
+      </Info> */}
     </Container>
   );
 }
