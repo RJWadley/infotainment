@@ -7,12 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      includeAssets: [
-        "assets/favicon.ico",
-        "assets/apple-touch-icon.png",
-        "android-chrome-192x192.png",
-        "android-chrome-512x512.png",
-      ],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "Cartainment",
         short_name: "car",
